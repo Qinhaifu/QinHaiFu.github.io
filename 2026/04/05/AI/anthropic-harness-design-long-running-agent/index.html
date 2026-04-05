@@ -1,0 +1,318 @@
+<!DOCTYPE html><html lang="cn" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>Anthropic《Harness Design for Long-Running Application Development》读后感：长任务 Agent 的 Harness 设计方法 | 仲谨的个人博客</title><meta name="author" content="仲谨(haifu_qin@163.com)"><meta name="copyright" content="仲谨(haifu_qin@163.com)"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="基于 Anthropic 文章《Harness Design for Long-Running Application Development》的学习笔记，系统梳理长时间运行 Agent 开发中的上下文焦虑与自评偏差问题，并总结 Planner&#x2F;Generator&#x2F;Evaluator 架构、Sprint 演进和工程落地方法。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Anthropic《Harness Design for Long-Running Application Development》读后感：长任务 Agent 的 Harness 设计方法">
+<meta property="og:url" content="http://qinhaifu.github.io/2026/04/05/AI/anthropic-harness-design-long-running-agent/index.html">
+<meta property="og:site_name" content="仲谨的个人博客">
+<meta property="og:description" content="基于 Anthropic 文章《Harness Design for Long-Running Application Development》的学习笔记，系统梳理长时间运行 Agent 开发中的上下文焦虑与自评偏差问题，并总结 Planner&#x2F;Generator&#x2F;Evaluator 架构、Sprint 演进和工程落地方法。">
+<meta property="og:locale">
+<meta property="og:image" content="https://i.loli.net/2021/02/24/5O1day2nriDzjSu.png">
+<meta property="article:published_time" content="2026-04-05T03:00:00.000Z">
+<meta property="article:modified_time" content="2026-04-05T03:00:00.000Z">
+<meta property="article:author" content="仲谨(haifu_qin@163.com)">
+<meta property="article:tag" content="AI Agent">
+<meta property="article:tag" content="Harness Engineering">
+<meta property="article:tag" content="Anthropic">
+<meta property="article:tag" content="多Agent系统">
+<meta property="article:tag" content="软件工程">
+<meta property="article:tag" content="学习笔记">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://i.loli.net/2021/02/24/5O1day2nriDzjSu.png"><link rel="shortcut icon" href="/img/favicon.png"><link rel="canonical" href="http://qinhaifu.github.io/2026/04/05/AI/anthropic-harness-design-long-running-agent/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css?v=4.13.0"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@5.0.33/dist/fancybox/fancybox.min.css" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: undefined,
+  noticeOutdate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false},
+  copy: {
+    success: 'Copy Successful',
+    error: 'Copy Error',
+    noSupport: 'Browser Not Supported'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '',
+  dateSuffix: {
+    just: 'Just now',
+    min: 'minutes ago',
+    hour: 'hours ago',
+    day: 'days ago',
+    month: 'months ago'
+  },
+  copyright: undefined,
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.11.1/dist/infinitegrid.min.js',
+    buttonText: 'Load More'
+  },
+  isPhotoFigcaption: false,
+  islazyload: false,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'Anthropic《Harness Design for Long-Running Application Development》读后感：长任务 Agent 的 Harness 设计方法',
+  isPost: true,
+  isHome: false,
+  isHighlightShrink: false,
+  isToc: true,
+  postUpdate: '2026-04-05 11:00:00'
+}</script><script>(win=>{
+      win.saveToLocal = {
+        set: (key, value, ttl) => {
+          if (ttl === 0) return
+          const now = Date.now()
+          const expiry = now + ttl * 86400000
+          const item = {
+            value,
+            expiry
+          }
+          localStorage.setItem(key, JSON.stringify(item))
+        },
+      
+        get: key => {
+          const itemStr = localStorage.getItem(key)
+      
+          if (!itemStr) {
+            return undefined
+          }
+          const item = JSON.parse(itemStr)
+          const now = Date.now()
+      
+          if (now > item.expiry) {
+            localStorage.removeItem(key)
+            return undefined
+          }
+          return item.value
+        }
+      }
+    
+      win.getScript = (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        script.onerror = reject
+        script.onload = script.onreadystatechange = function() {
+          const loadState = this.readyState
+          if (loadState && loadState !== 'loaded' && loadState !== 'complete') return
+          script.onload = script.onreadystatechange = null
+          resolve()
+        }
+
+        Object.keys(attr).forEach(key => {
+          script.setAttribute(key, attr[key])
+        })
+
+        document.head.appendChild(script)
+      })
+    
+      win.getCSS = (url, id = false) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onerror = reject
+        link.onload = link.onreadystatechange = function() {
+          const loadState = this.readyState
+          if (loadState && loadState !== 'loaded' && loadState !== 'complete') return
+          link.onload = link.onreadystatechange = null
+          resolve()
+        }
+        document.head.appendChild(link)
+      })
+    
+      win.activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      win.activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+      const t = saveToLocal.get('theme')
+    
+        if (t === 'dark') activateDarkMode()
+        else if (t === 'light') activateLightMode()
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        if (asideStatus === 'hide') {
+          document.documentElement.classList.add('hide-aside')
+        } else {
+          document.documentElement.classList.remove('hide-aside')
+        }
+      }
+    
+      const detectApple = () => {
+        if(/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)){
+          document.documentElement.classList.add('apple')
+        }
+      }
+      detectApple()
+    })(window)</script><meta name="generator" content="Hexo 7.2.0"></head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img is-center"><img src="https://i.loli.net/2021/02/24/5O1day2nriDzjSu.png" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div><div class="sidebar-site-data site-data is-center"><a href="/archives/"><div class="headline">Articles</div><div class="length-num">7</div></a><a href="/tags/"><div class="headline">Tags</div><div class="length-num">13</div></a><a href="/categories/"><div class="headline">Categories</div><div class="length-num">5</div></a></div><hr class="custom-hr"/></div></div><div class="post" id="body-wrap"><header class="post-bg" id="page-header"><nav id="nav"><span id="blog-info"><a href="/" title="仲谨的个人博客"><span class="site-name">仲谨的个人博客</span></a></span><div id="menus"><div id="toggle-menu"><a class="site-page" href="javascript:void(0);"><i class="fas fa-bars fa-fw"></i></a></div></div></nav><div id="post-info"><h1 class="post-title">Anthropic《Harness Design for Long-Running Application Development》读后感：长任务 Agent 的 Harness 设计方法</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">Created</span><time class="post-meta-date-created" datetime="2026-04-05T03:00:00.000Z" title="Created 2026-04-05 11:00:00">2026-04-05</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">Updated</span><time class="post-meta-date-updated" datetime="2026-04-05T03:00:00.000Z" title="Updated 2026-04-05 11:00:00">2026-04-05</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/AI%E5%B7%A5%E7%A8%8B/">AI工程</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title="Anthropic《Harness Design for Long-Running Application Development》读后感：长任务 Agent 的 Harness 设计方法"><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">Post Views:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="post-content" id="article-container"><blockquote>
+<p>原文：<a target="_blank" rel="noopener" href="https://www.anthropic.com/engineering/harness-design-long-running-apps">https://www.anthropic.com/engineering/harness-design-long-running-apps</a><br>作者：Prithvi Rajasekaran（Anthropic Labs）<br>发布时间：2026-03-24<br>阅读时间：2026-03-30</p>
+</blockquote>
+<hr>
+<h2 id="一、背景：为什么长时间-Agent-开发不能只靠“单次直出”"><a href="#一、背景：为什么长时间-Agent-开发不能只靠“单次直出”" class="headerlink" title="一、背景：为什么长时间 Agent 开发不能只靠“单次直出”"></a>一、背景：为什么长时间 Agent 开发不能只靠“单次直出”</h2><p>这篇文章最打动我的点是：它没有神化模型能力，而是把问题摊开讲清楚——当任务跨度从 20 分钟拉到 2~4 小时后，朴素链路（一个 Agent 从头写到尾）会稳定出现失败模式。</p>
+<p>核心有两个：</p>
+<h3 id="1、上下文焦虑（Context-Anxiety）"><a href="#1、上下文焦虑（Context-Anxiety）" class="headerlink" title="1、上下文焦虑（Context Anxiety）"></a>1、上下文焦虑（Context Anxiety）</h3><p>（1）随着 context window 逐步填满，模型连贯性会下降。<br>（2）有些模型在接近上下文上限时会“提前收尾”，看起来像完成了，实际是草草结束。<br>（3）典型应对是 <code>Context Reset</code>：不是做摘要压缩（Compaction），而是给新 Agent 一个全新上下文，再通过 handoff artifact 接棒。</p>
+<p>作者给的实测结论也很关键：<code>Claude Sonnet 4.5</code> 对上下文焦虑更敏感，而 <code>Opus 4.6</code> 已经明显改善，Reset 的必要性下降。</p>
+<h3 id="2、自我评价偏差（Self-Evaluation-Bias）"><a href="#2、自我评价偏差（Self-Evaluation-Bias）" class="headerlink" title="2、自我评价偏差（Self-Evaluation Bias）"></a>2、自我评价偏差（Self-Evaluation Bias）</h3><p>（1）让 <code>Generator</code> 自评，常见结果是“过于乐观”，甚至会给中等质量打高分。<br>（2）主观任务（例如设计）问题更明显，因为缺少二进制通过&#x2F;失败信号。<br>（3）更有效的解法是“生成与评估分离”：独立 <code>Evaluator</code> 做评分和验收，比逼 <code>Generator</code> 自我批判更稳。</p>
+<p>一句话先立住：<strong>Harness 的起点不是“多加组件”，而是承认模型在长链路上确实有能力边界。</strong></p>
+<hr>
+<h2 id="二、方案与过程：GAN-启发的生成-评估循环，以及两组实验"><a href="#二、方案与过程：GAN-启发的生成-评估循环，以及两组实验" class="headerlink" title="二、方案与过程：GAN 启发的生成-评估循环，以及两组实验"></a>二、方案与过程：GAN 启发的生成-评估循环，以及两组实验</h2><h3 id="1、总体架构：Planner-→-Generator-↔-Evaluator"><a href="#1、总体架构：Planner-→-Generator-↔-Evaluator" class="headerlink" title="1、总体架构：Planner → Generator ↔ Evaluator"></a>1、总体架构：Planner → Generator ↔ Evaluator</h3><p>作者借鉴了 GAN 的对抗迭代思路，抽成了下面这个流程：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">用户 Prompt → [Planner] → 完整产品规格</span><br><span class="line">                              ↓</span><br><span class="line">                        [Generator] → 实现输出</span><br><span class="line">                              ↑            ↓</span><br><span class="line">                        [Evaluator] ← 评估反馈（循环）</span><br></pre></td></tr></table></figure>
+
+<p>你可以理解为：<code>Planner</code> 管“做什么”，<code>Generator</code> 管“怎么做”，<code>Evaluator</code> 管“做得是否达标”。三者分工后，系统才有机会在长时间运行下保持质量。</p>
+<h3 id="2、实验一：前端设计质量提升（把主观审美变成可评分）"><a href="#2、实验一：前端设计质量提升（把主观审美变成可评分）" class="headerlink" title="2、实验一：前端设计质量提升（把主观审美变成可评分）"></a>2、实验一：前端设计质量提升（把主观审美变成可评分）</h3><p>问题很真实：模型默认会产出“能用但普通”的页面，工整但没灵魂。</p>
+<p>他们做的关键动作，是把“审美”拆成可以执行的评分标准，并同时给 <code>Generator</code> 和 <code>Evaluator</code> 使用：</p>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>说明</th>
+<th>默认表现</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>设计质量</td>
+<td>是否有整体气质，而不是拼装感</td>
+<td>偏低</td>
+</tr>
+<tr>
+<td>原创性</td>
+<td>是否有明确创意决策，避免“AI 套路味”</td>
+<td>偏低</td>
+</tr>
+<tr>
+<td>工艺</td>
+<td>字体层级、留白节奏、色彩和谐、对比度</td>
+<td>较好</td>
+</tr>
+<tr>
+<td>功能性</td>
+<td>用户能否顺畅完成任务</td>
+<td>较好</td>
+</tr>
+</tbody></table>
+<p>他们特别提高了“设计质量 + 原创性”的权重，并显式惩罚常见 AI 模式（例如白卡片+紫渐变这类模板感）。</p>
+<p>实现细节上：</p>
+<p>（1）基于 <code>Claude Agent SDK</code> 实现循环。<br>（2）<code>Evaluator</code> 用 <code>Playwright MCP</code> 直接操作运行中的页面（不是只看截图）。<br>（3）一次完整运行做 5~15 轮迭代，最长可到 4 小时。<br>（4）用 few-shot + 评分分解去校准评估器尺度。</p>
+<p>最有代表性的案例是博物馆网站：前 1~9 轮都在“精致常规”范围内，第 10 轮突然跃迁到 3D 空间叙事（棋盘地面、墙面画作、走廊导航）。这种创意跳变，单次生成几乎很难碰到。</p>
+<p>这里有个很值得记笔记的结论：<strong>评价标准的措辞会反向塑造生成方向</strong>。比如“博物馆级别设计”这类语言，会把模型往特定风格持续拉拢。</p>
+<h3 id="3、实验二：全栈长时编码（从-Sprint-化到简化-Harness）"><a href="#3、实验二：全栈长时编码（从-Sprint-化到简化-Harness）" class="headerlink" title="3、实验二：全栈长时编码（从 Sprint 化到简化 Harness）"></a>3、实验二：全栈长时编码（从 Sprint 化到简化 Harness）</h3><h4 id="3-1-初版三-Agent-分工"><a href="#3-1-初版三-Agent-分工" class="headerlink" title="3.1 初版三 Agent 分工"></a>3.1 初版三 Agent 分工</h4><p><code>Planner</code>：从 1~4 句需求生成高层规格，强调“交付目标”，避免过早绑定技术细节。<br><code>Generator</code>：按 Sprint 实现（React + Vite + FastAPI + SQLite，后续升级 PostgreSQL），每个 Sprint 后自评再交 QA。<br><code>Evaluator</code>：用 <code>Playwright MCP</code> 走真实用户路径，检查 UI &#x2F; API &#x2F; DB，并按硬门槛判定是否过关。</p>
+<p>另外还有 <code>Sprint Contract</code>：每个 Sprint 开始前，<code>Generator</code> 和 <code>Evaluator</code> 先协商“完成定义”，通过文件互相对齐预期。</p>
+<h4 id="3-2-对比结果：质量和成本直接拉开"><a href="#3-2-对比结果：质量和成本直接拉开" class="headerlink" title="3.2 对比结果：质量和成本直接拉开"></a>3.2 对比结果：质量和成本直接拉开</h4><table>
+<thead>
+<tr>
+<th>方式</th>
+<th>时长</th>
+<th>费用</th>
+<th>质量</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Solo（单 Agent）</td>
+<td>20 分钟</td>
+<td>$9</td>
+<td>核心功能损坏，逻辑断线</td>
+</tr>
+<tr>
+<td>Full Harness</td>
+<td>6 小时</td>
+<td>$200</td>
+<td>可玩、功能完整、视觉一致，含 AI 能力</td>
+</tr>
+</tbody></table>
+<p>结论很直白：Harness 显著更贵（20x+），但质量上是“能不能交付”的差距，不只是“好一点”。</p>
+<h4 id="3-3-Evaluator-不是“开箱即用”，必须调优"><a href="#3-3-Evaluator-不是“开箱即用”，必须调优" class="headerlink" title="3.3 Evaluator 不是“开箱即用”，必须调优"></a>3.3 Evaluator 不是“开箱即用”，必须调优</h4><p>作者明确提到：默认模型做 QA 往往偏宽松。发现问题后，容易自己把问题合理化（“好像也还行”）。</p>
+<p>有效做法是：</p>
+<p>（1）读评估日志。<br>（2）对照人工判断找偏差。<br>（3）回改 QA Prompt。<br>（4）重复迭代。</p>
+<p>这个过程本质上是“训练评审标准”，不是简单换个提示词一把梭。</p>
+<h3 id="4、Harness-迭代：把组件当假设，而不是圣经"><a href="#4、Harness-迭代：把组件当假设，而不是圣经" class="headerlink" title="4、Harness 迭代：把组件当假设，而不是圣经"></a>4、Harness 迭代：把组件当假设，而不是圣经</h3><p>作者引用《Building Effective Agents》的原则我很认同：先做最简单可行方案，确有必要再加复杂度。</p>
+<p>为什么这么说？因为每个组件背后都在编码一个假设：</p>
+<p>（1）加 <code>Planner</code>：假设模型拿短需求会漏范围。<br>（2）加 <code>Sprint</code>：假设长链路实现会跑偏。<br>（3）加 <code>Evaluator</code>：假设自评会偏乐观。<br>（4）加 <code>Context Reset</code>：假设超长上下文会失稳。</p>
+<p>那么问题来了，既然是“假设”，就不能一劳永逸。模型能力一变，旧假设可能就过时。</p>
+<p>对应到工程落地，我理解有 4 条实操原则：</p>
+<p>（1）把组件当可验证假设，持续做 A&#x2F;B 或日志复盘。<br>（2）定期做减法，优先移除“曾经必要、现在累赘”的脚手架。<br>（3）按任务难度动态开关组件，不搞一刀切。<br>（4）围绕真实失败样本迭代（漏测、跑偏、提前收尾），最小增量加组件。</p>
+<h3 id="5、Opus-4-6-后的结构变化：移除-Sprint"><a href="#5、Opus-4-6-后的结构变化：移除-Sprint" class="headerlink" title="5、Opus 4.6 后的结构变化：移除 Sprint"></a>5、Opus 4.6 后的结构变化：移除 Sprint</h3><p>旧版需要 Sprint，是因为早期模型长时稳定性不足；新版（Opus 4.6）在规划、长跑、自检上明显更强，原先必须“分段纠偏”的必要性降低。</p>
+<p>结构从：</p>
+<p>（1）旧：每个 Sprint 后都评估。<br>（2）新：<code>Generator</code> 先完整构建，再统一 QA（必要时再下一轮 build + QA）。</p>
+<p>这也带来一个关键判断：<code>Evaluator</code> 价值并非恒定，而是边界条件相关。</p>
+<p>（1）任务在模型能力范围内时，Evaluator 可能主要增加时延和成本。<br>（2）任务在能力边缘时，Evaluator 往往是“最后一公里”质量保障。</p>
+<p>他们在浏览器 DAW 项目上的新版数据如下：</p>
+<table>
+<thead>
+<tr>
+<th>阶段</th>
+<th>时长</th>
+<th>费用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Planner</td>
+<td>4.7 分钟</td>
+<td>$0.46</td>
+</tr>
+<tr>
+<td>Build Round 1</td>
+<td>2 小时 7 分钟</td>
+<td>$71.08</td>
+</tr>
+<tr>
+<td>QA Round 1</td>
+<td>8.8 分钟</td>
+<td>$3.24</td>
+</tr>
+<tr>
+<td>Build Round 2</td>
+<td>1 小时 2 分钟</td>
+<td>$36.89</td>
+</tr>
+<tr>
+<td>QA Round 2</td>
+<td>6.8 分钟</td>
+<td>$3.09</td>
+</tr>
+<tr>
+<td>Build Round 3</td>
+<td>10.9 分钟</td>
+<td>$5.88</td>
+</tr>
+<tr>
+<td>QA Round 3</td>
+<td>9.6 分钟</td>
+<td>$4.06</td>
+</tr>
+<tr>
+<td>合计</td>
+<td>3 小时 50 分钟</td>
+<td>$124.70</td>
+</tr>
+</tbody></table>
+<p>产出是一个可运行的浏览器 DAW（Arrangement View、Mixer、Transport 完整），并且能通过内置 Claude Agent 做自然语言编曲控制。</p>
+<hr>
+<h2 id="三、总结：Harness-本质是“能力边界管理系统”"><a href="#三、总结：Harness-本质是“能力边界管理系统”" class="headerlink" title="三、总结：Harness 本质是“能力边界管理系统”"></a>三、总结：Harness 本质是“能力边界管理系统”</h2><p>这篇文章给我的核心启发，不是“多 Agent 更高级”，而是下面这 5 句：</p>
+<p>（1）生成与评估分离，是对抗自评偏差的最强杠杆之一。<br>（2）评估标准不只是验收工具，它会反向塑造生成行为。<br>（3）Evaluator 必须调优，默认尺度通常不够苛刻。<br>（4）每次模型升级，都要重评 Harness 组件是否还必要。<br>（5）Harness 复杂度不会消失，只会随着模型能力和任务难度迁移。</p>
+<p>如果要压成三句话的方法论主线：</p>
+<p>（1）围绕当前模型能力边界搭脚手架。<br>（2）坚持最小必要复杂度，能不加就不加。<br>（3）持续重评估，敢于删旧组件，也敢于补新约束。</p>
+<p>最后给一个工具链场景的 MVP（可直接落地）：</p>
+<p>（1）最小角色先上 <code>Generator + Evaluator</code>。<br>（2）验收标准至少包含：可运行、测试通过、关键路径通过。<br>（3）简单改动（文案&#x2F;样式&#x2F;局部重构，且不动接口与数据结构）可以暂时关闭 Evaluator 降本提速。</p>
+<hr>
+<h2 id="四、个人思考"><a href="#四、个人思考" class="headerlink" title="四、个人思考"></a>四、个人思考</h2><p>（1）<code>Sprint Contract</code> 很像软件工程里的“接口契约先行”，这个抽象非常实用。<br>（2）<code>Evaluator</code> 调优是持续工程，不是一次配置。<br>（3）“只有任务超出模型能力边界时，Evaluator 才值回票价”这个判断标准，可以直接拿去指导成本控制。<br>（4）在 3~4 小时和百美元量级里拿到可用 DAW，工程效率已经非常夸张。</p>
+<p>如有理解偏差或笔误，欢迎交流讨论。</p>
+<hr>
+<h2 id="参考链接"><a href="#参考链接" class="headerlink" title="参考链接"></a>参考链接</h2><ol>
+<li><a target="_blank" rel="noopener" href="https://www.anthropic.com/engineering/harness-design-long-running-apps">https://www.anthropic.com/engineering/harness-design-long-running-apps</a>  </li>
+<li>Anthropic：《Building Effective Agents》</li>
+</ol>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>Author: </span><span class="post-copyright-info"><a href="http://qinhaifu.github.io">仲谨(haifu_qin@163.com)</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>Link: </span><span class="post-copyright-info"><a href="http://qinhaifu.github.io/2026/04/05/AI/anthropic-harness-design-long-running-agent/">http://qinhaifu.github.io/2026/04/05/AI/anthropic-harness-design-long-running-agent/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>Copyright Notice: </span><span class="post-copyright-info">All articles in this blog are licensed under <a target="_blank" rel="noopener" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a> unless stating additionally.</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/AI-Agent/">AI Agent</a><a class="post-meta__tags" href="/tags/Harness-Engineering/">Harness Engineering</a><a class="post-meta__tags" href="/tags/Anthropic/">Anthropic</a><a class="post-meta__tags" href="/tags/%E5%A4%9AAgent%E7%B3%BB%E7%BB%9F/">多Agent系统</a><a class="post-meta__tags" href="/tags/%E8%BD%AF%E4%BB%B6%E5%B7%A5%E7%A8%8B/">软件工程</a><a class="post-meta__tags" href="/tags/%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/">学习笔记</a></div><div class="post_share"><div class="social-share" data-image="https://i.loli.net/2021/02/24/5O1day2nriDzjSu.png" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.3/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.3/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><div class="next-post pull-full"><a href="/2026/04/04/AI/harness-engineering-openai-agent-workflow/" title="OpenAI《Harness Engineering》读后感：如何为Agent搭建友好的工程环境"><div class="cover" style="background: var(--default-bg-color)"></div><div class="pagination-info"><div class="label">Next</div><div class="next_info">OpenAI《Harness Engineering》读后感：如何为Agent搭建友好的工程环境</div></div></a></div></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>Related Articles</span></div><div class="relatedPosts-list"><div><a href="/2026/04/04/AI/harness-engineering-openai-agent-workflow/" title="OpenAI《Harness Engineering》读后感：如何为Agent搭建友好的工程环境"><div class="cover" style="background: var(--default-bg-color)"></div><div class="content is-center"><div class="date"><i class="far fa-calendar-alt fa-fw"></i> 2026-04-04</div><div class="title">OpenAI《Harness Engineering》读后感：如何为Agent搭建友好的工程环境</div></div></a></div></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info"><div class="is-center"><div class="avatar-img"><img src="https://i.loli.net/2021/02/24/5O1day2nriDzjSu.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info__name">仲谨(haifu_qin@163.com)</div><div class="author-info__description">一个游戏爱好者，一个游戏开发程序员</div></div><div class="card-info-data site-data is-center"><a href="/archives/"><div class="headline">Articles</div><div class="length-num">7</div></a><a href="/tags/"><div class="headline">Tags</div><div class="length-num">13</div></a><a href="/categories/"><div class="headline">Categories</div><div class="length-num">5</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/Qinhaifu"><i class="fab fa-github"></i><span>Follow Me</span></a></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>Announcement</span></div><div class="announcement_content">不定期更新博客，大部分是技术文章，会有少量随笔闲聊，欢迎大家关注！</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>Contents</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E8%83%8C%E6%99%AF%EF%BC%9A%E4%B8%BA%E4%BB%80%E4%B9%88%E9%95%BF%E6%97%B6%E9%97%B4-Agent-%E5%BC%80%E5%8F%91%E4%B8%8D%E8%83%BD%E5%8F%AA%E9%9D%A0%E2%80%9C%E5%8D%95%E6%AC%A1%E7%9B%B4%E5%87%BA%E2%80%9D"><span class="toc-number">1.</span> <span class="toc-text">一、背景：为什么长时间 Agent 开发不能只靠“单次直出”</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1%E3%80%81%E4%B8%8A%E4%B8%8B%E6%96%87%E7%84%A6%E8%99%91%EF%BC%88Context-Anxiety%EF%BC%89"><span class="toc-number">1.1.</span> <span class="toc-text">1、上下文焦虑（Context Anxiety）</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2%E3%80%81%E8%87%AA%E6%88%91%E8%AF%84%E4%BB%B7%E5%81%8F%E5%B7%AE%EF%BC%88Self-Evaluation-Bias%EF%BC%89"><span class="toc-number">1.2.</span> <span class="toc-text">2、自我评价偏差（Self-Evaluation Bias）</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81%E6%96%B9%E6%A1%88%E4%B8%8E%E8%BF%87%E7%A8%8B%EF%BC%9AGAN-%E5%90%AF%E5%8F%91%E7%9A%84%E7%94%9F%E6%88%90-%E8%AF%84%E4%BC%B0%E5%BE%AA%E7%8E%AF%EF%BC%8C%E4%BB%A5%E5%8F%8A%E4%B8%A4%E7%BB%84%E5%AE%9E%E9%AA%8C"><span class="toc-number">2.</span> <span class="toc-text">二、方案与过程：GAN 启发的生成-评估循环，以及两组实验</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1%E3%80%81%E6%80%BB%E4%BD%93%E6%9E%B6%E6%9E%84%EF%BC%9APlanner-%E2%86%92-Generator-%E2%86%94-Evaluator"><span class="toc-number">2.1.</span> <span class="toc-text">1、总体架构：Planner → Generator ↔ Evaluator</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2%E3%80%81%E5%AE%9E%E9%AA%8C%E4%B8%80%EF%BC%9A%E5%89%8D%E7%AB%AF%E8%AE%BE%E8%AE%A1%E8%B4%A8%E9%87%8F%E6%8F%90%E5%8D%87%EF%BC%88%E6%8A%8A%E4%B8%BB%E8%A7%82%E5%AE%A1%E7%BE%8E%E5%8F%98%E6%88%90%E5%8F%AF%E8%AF%84%E5%88%86%EF%BC%89"><span class="toc-number">2.2.</span> <span class="toc-text">2、实验一：前端设计质量提升（把主观审美变成可评分）</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3%E3%80%81%E5%AE%9E%E9%AA%8C%E4%BA%8C%EF%BC%9A%E5%85%A8%E6%A0%88%E9%95%BF%E6%97%B6%E7%BC%96%E7%A0%81%EF%BC%88%E4%BB%8E-Sprint-%E5%8C%96%E5%88%B0%E7%AE%80%E5%8C%96-Harness%EF%BC%89"><span class="toc-number">2.3.</span> <span class="toc-text">3、实验二：全栈长时编码（从 Sprint 化到简化 Harness）</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#3-1-%E5%88%9D%E7%89%88%E4%B8%89-Agent-%E5%88%86%E5%B7%A5"><span class="toc-number">2.3.1.</span> <span class="toc-text">3.1 初版三 Agent 分工</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#3-2-%E5%AF%B9%E6%AF%94%E7%BB%93%E6%9E%9C%EF%BC%9A%E8%B4%A8%E9%87%8F%E5%92%8C%E6%88%90%E6%9C%AC%E7%9B%B4%E6%8E%A5%E6%8B%89%E5%BC%80"><span class="toc-number">2.3.2.</span> <span class="toc-text">3.2 对比结果：质量和成本直接拉开</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#3-3-Evaluator-%E4%B8%8D%E6%98%AF%E2%80%9C%E5%BC%80%E7%AE%B1%E5%8D%B3%E7%94%A8%E2%80%9D%EF%BC%8C%E5%BF%85%E9%A1%BB%E8%B0%83%E4%BC%98"><span class="toc-number">2.3.3.</span> <span class="toc-text">3.3 Evaluator 不是“开箱即用”，必须调优</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4%E3%80%81Harness-%E8%BF%AD%E4%BB%A3%EF%BC%9A%E6%8A%8A%E7%BB%84%E4%BB%B6%E5%BD%93%E5%81%87%E8%AE%BE%EF%BC%8C%E8%80%8C%E4%B8%8D%E6%98%AF%E5%9C%A3%E7%BB%8F"><span class="toc-number">2.4.</span> <span class="toc-text">4、Harness 迭代：把组件当假设，而不是圣经</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5%E3%80%81Opus-4-6-%E5%90%8E%E7%9A%84%E7%BB%93%E6%9E%84%E5%8F%98%E5%8C%96%EF%BC%9A%E7%A7%BB%E9%99%A4-Sprint"><span class="toc-number">2.5.</span> <span class="toc-text">5、Opus 4.6 后的结构变化：移除 Sprint</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81%E6%80%BB%E7%BB%93%EF%BC%9AHarness-%E6%9C%AC%E8%B4%A8%E6%98%AF%E2%80%9C%E8%83%BD%E5%8A%9B%E8%BE%B9%E7%95%8C%E7%AE%A1%E7%90%86%E7%B3%BB%E7%BB%9F%E2%80%9D"><span class="toc-number">3.</span> <span class="toc-text">三、总结：Harness 本质是“能力边界管理系统”</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81%E4%B8%AA%E4%BA%BA%E6%80%9D%E8%80%83"><span class="toc-number">4.</span> <span class="toc-text">四、个人思考</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%8F%82%E8%80%83%E9%93%BE%E6%8E%A5"><span class="toc-number">5.</span> <span class="toc-text">参考链接</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>Recent Post</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/04/05/AI/anthropic-harness-design-long-running-agent/" title="Anthropic《Harness Design for Long-Running Application Development》读后感：长任务 Agent 的 Harness 设计方法">Anthropic《Harness Design for Long-Running Application Development》读后感：长任务 Agent 的 Harness 设计方法</a><time datetime="2026-04-05T03:00:00.000Z" title="Created 2026-04-05 11:00:00">2026-04-05</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/04/04/AI/harness-engineering-openai-agent-workflow/" title="OpenAI《Harness Engineering》读后感：如何为Agent搭建友好的工程环境">OpenAI《Harness Engineering》读后感：如何为Agent搭建友好的工程环境</a><time datetime="2026-04-04T02:00:00.000Z" title="Created 2026-04-04 10:00:00">2026-04-04</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2024/07/13/hello-world/" title="个人博客开通纪念">个人博客开通纪念</a><time datetime="2024-07-13T01:24:48.965Z" title="Created 2024-07-13 09:24:48">2024-07-13</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2024/07/07/CPython/%E4%B8%8D%E5%90%8C%E7%9A%84python%20import%20%E6%96%B9%E5%BC%8F%E5%AF%BC%E8%87%B4%E7%9A%84reload%E8%B8%A9%E5%9D%91%E8%AE%B0%E5%BD%95/" title="不同的python import 方式导致的reload踩坑记录">不同的python import 方式导致的reload踩坑记录</a><time datetime="2024-07-07T05:00:00.000Z" title="Created 2024-07-07 13:00:00">2024-07-07</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2024/07/07/CPython/%E6%9C%89co_freevars%E6%97%B6%E5%A6%82%E4%BD%95%E6%9B%BF%E6%8D%A2PyCodeObject/" title="如何替换含有co_freevars的PyCodeObject">如何替换含有co_freevars的PyCodeObject</a><time datetime="2024-07-07T05:00:00.000Z" title="Created 2024-07-07 13:00:00">2024-07-07</time></div></div></div></div></div></div></main><footer id="footer"><div id="footer-wrap"><div class="copyright">&copy;2020 - 2026 By 仲谨(haifu_qin@163.com)</div><div class="framework-info"><span>Framework </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>Theme </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="Read Mode"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="Toggle Between Light And Dark Mode"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="Toggle between Single-column and Double-column"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="Setting"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="Table Of Contents"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="Back To Top"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=4.13.0"></script><script src="/js/main.js?v=4.13.0"></script><script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@5.0.33/dist/fancybox/fancybox.umd.min.js"></script><div class="js-pjax"></div><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script></div></body></html>
